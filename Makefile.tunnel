@@ -1,0 +1,43 @@
+.PHONY: help install run url stop clean
+.DEFAULT_GOAL := help
+
+CLOUDFLARED ?= /usr/local/bin/cloudflared
+HOST         ?= 127.0.0.1
+PORT         ?= 8060
+LOG_FILE     ?= cloudflared.log
+
+
+help: ## Show available commands
+	@echo "Cloudflare Tunnel — available commands:"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Configuration:"
+	@echo "  HOST = $(HOST)"
+	@echo "  PORT = $(PORT)"
+
+
+install: ## Install cloudflared
+	wget -q \
+		https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+		-O $(CLOUDFLARED)
+	chmod +x $(CLOUDFLARED)
+
+
+run: ## Start a temporary Cloudflare tunnel
+	nohup $(CLOUDFLARED) tunnel \
+		--url http://$(HOST):$(PORT) \
+		> $(LOG_FILE) 2>&1 &
+
+
+url: ## Show the public tunnel URL
+	@grep -o 'https://[-a-zA-Z0-9]*\.trycloudflare\.com' $(LOG_FILE) | head -1
+
+
+stop: ## Stop the Cloudflare tunnel
+	@pkill -f 'cloudflared tunnel' || true
+
+
+clean: ## Remove cloudflared and log file
+	rm -f $(CLOUDFLARED) $(LOG_FILE)
